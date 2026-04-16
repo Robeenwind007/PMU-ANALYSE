@@ -1,4 +1,4 @@
-const CACHE = 'pmu-stats-v1';
+const CACHE = 'pmu-stats-v2';
 const SHELL = ['./index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
