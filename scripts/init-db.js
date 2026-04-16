@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * init-db.js — Chargement historique PMU (2010 → aujourd'hui) dans Supabase
+ * init-db.js — Chargement historique PMU (2004 → aujourd'hui) dans Supabase
  * Usage : node scripts/init-db.js
  * Nécessite : SUPABASE_URL et SUPABASE_SERVICE_KEY dans l'environnement
  *             (utiliser la service_role key pour contourner RLS en écriture)
@@ -105,24 +105,36 @@ function toRow(isoDate, item) {
 // ── Récupérer les dates déjà chargées ────────────────────────────────────────
 
 async function getAlreadyLoaded() {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/courses?select=date&order=date.desc`,
-    {
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`
+  let allDates = [];
+  let offset = 0;
+  const limit = 1000;
+
+  // Paginer car Supabase limite à 1000 lignes par défaut
+  while (true) {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/courses?select=date&order=date.asc&limit=${limit}&offset=${offset}`,
+      {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`
+        }
       }
-    }
-  );
-  if (!res.ok) return new Set();
-  const rows = await res.json();
-  return new Set(rows.map(r => r.date));
+    );
+    if (!res.ok) break;
+    const rows = await res.json();
+    if (!rows.length) break;
+    allDates = allDates.concat(rows.map(r => r.date));
+    if (rows.length < limit) break;
+    offset += limit;
+  }
+
+  return new Set(allDates);
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
-  const START = '2010-01-01';
+  const START = '2004-01-01';
   const END   = new Date().toISOString().slice(0, 10);
   const allDates = dateRange(START, END);
 
@@ -141,7 +153,6 @@ async function main() {
 
   let inserted = 0;
   let empty    = 0;
-  let errors   = 0;
   const BATCH_DAYS = 10; // jours traités en parallèle
   const PAUSE_MS   = 1200; // pause entre batches (respecter rate limit API)
 
@@ -169,7 +180,7 @@ async function main() {
     await sleep(PAUSE_MS);
   }
 
-  console.log(`\n\n🎉  Terminé ! ${inserted} courses insérées, ${empty} jours sans courses, ${errors} erreurs`);
+  console.log(`\n\n🎉  Terminé ! ${inserted} courses insérées, ${empty} jours sans courses`);
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
