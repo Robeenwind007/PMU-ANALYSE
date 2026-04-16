@@ -390,7 +390,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5) sepi
 .splash-bar {
   height: 100%; width: 0; border-radius: 2px;
   background: linear-gradient(90deg, var(--gold), var(--gold-lt));
-  animation: barFill 2s 0.6s cubic-bezier(0.4,0,0.2,1) forwards;
+  animation: barFill 3.5s 0.6s cubic-bezier(0.4,0,0.2,1) forwards;
 }
 @keyframes barFill {
   0%   { width:0%; }
@@ -403,6 +403,38 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5) sepi
   margin-top: 14px; letter-spacing: 1px;
   animation: fadeUpIn 0.6s 0.58s cubic-bezier(0.16,1,0.3,1) both;
 }
+.splash-cta {
+  margin-top: 28px;
+  animation: fadeUpIn 0.6s 2s cubic-bezier(0.16,1,0.3,1) both;
+  opacity: 0;
+}
+.splash-cta button {
+  background: transparent;
+  border: 1px solid rgba(201,168,76,0.5);
+  border-radius: 40px;
+  color: var(--gold);
+  font-family: 'DM Mono', monospace;
+  font-size: 12px; letter-spacing: 3px; text-transform: uppercase;
+  padding: 12px 36px; cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.1s;
+  position: relative; overflow: hidden;
+}
+.splash-cta button::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(201,168,76,0.08), transparent);
+  transform: translateX(-100%);
+  animation: shimmer 2.2s 2.2s infinite;
+}
+@keyframes shimmer {
+  to { transform: translateX(100%); }
+}
+.splash-cta button:hover {
+  background: rgba(201,168,76,0.1);
+  border-color: var(--gold);
+  transform: scale(1.03);
+}
+.splash-cta button:active { transform: scale(0.97); }
 .splash-footer {
   position: absolute; bottom: 40px; left: 0; right: 0; text-align: center;
   animation: fadeUpIn 0.6s 0.7s cubic-bezier(0.16,1,0.3,1) both;
@@ -431,7 +463,36 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5) sepi
   </div>
   <div class="splash-content">
     <div class="splash-icon">
-      <img src="./apple-touch-icon.png" alt="PMU Stats">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" style="width:100%;height:100%;display:block;">
+        <defs>
+          <radialGradient id="sbg" cx="35%" cy="35%" r="70%">
+            <stop offset="0%" stop-color="#1a2438"/>
+            <stop offset="100%" stop-color="#07090f"/>
+          </radialGradient>
+          <linearGradient id="sg" x1="10%" y1="0%" x2="90%" y2="100%">
+            <stop offset="0%" stop-color="#f2d878"/>
+            <stop offset="50%" stop-color="#c9a84c"/>
+            <stop offset="100%" stop-color="#956e28"/>
+          </linearGradient>
+        </defs>
+        <rect width="512" height="512" fill="url(#sbg)"/>
+        <!-- Fer à cheval -->
+        <g transform="translate(256,230)">
+          <!-- Arc extérieur -->
+          <path d="M -140,0 A 140,140 0 0,1 140,0 L 140,70 A 95,95 0 0,0 95,70 L 95,0 A 95,95 0 0,0 -95,0 L -95,70 A 95,95 0 0,0 -140,70 Z" fill="url(#sg)"/>
+          <!-- Trous -->
+          <circle cx="-118" cy="-30" r="12" fill="#07090f"/>
+          <circle cx="-80"  cy="-95" r="12" fill="#07090f"/>
+          <circle cx="0"    cy="-118" r="12" fill="#07090f"/>
+          <circle cx="80"   cy="-95" r="12" fill="#07090f"/>
+          <circle cx="118"  cy="-30" r="12" fill="#07090f"/>
+          <!-- Reflet -->
+          <path d="M -128,-60 A 135,135 0 0,1 128,-60" stroke="rgba(240,210,100,0.3)" stroke-width="12" fill="none" stroke-linecap="round"/>
+        </g>
+        <!-- Texte PMU -->
+        <text x="256" y="390" text-anchor="middle" font-family="Georgia,serif" font-size="72" font-weight="bold" fill="#c9a84c" letter-spacing="-2">PMU</text>
+        <text x="256" y="420" text-anchor="middle" font-family="monospace" font-size="20" fill="rgba(201,168,76,0.45)" letter-spacing="6">COURSES</text>
+      </svg>
     </div>
     <div class="splash-title">PMU Stats</div>
     <div class="splash-subtitle">Analyse des courses</div>
@@ -440,6 +501,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5) sepi
       <div class="splash-bar"></div>
     </div>
     <div class="splash-version">v1.0.0</div>
+    <div class="splash-cta">
+      <button onclick="window._hideSplash && window._hideSplash()">Entrer</button>
+    </div>
   </div>
   <div class="splash-footer">
     <div class="splash-copy">© 2026 <span>Olivier BERNARD</span> · Tous droits réservés</div>
@@ -1012,17 +1076,21 @@ function setLoader(name, on) {
 // ── SPLASH ───────────────────────────────────────────────────────────────────
 (function() {
   const splash = document.getElementById('splash');
-  // Disparaît après 2.6s (laisse la barre se remplir) ou dès que Supabase répond
   let splashDone = false;
+  const startTime = Date.now();
+  const MIN_DURATION = 2500; // 2.5s minimum
+
   function hideSplash() {
     if (splashDone) return;
     splashDone = true;
     splash.classList.add('hide');
     setTimeout(() => splash.remove(), 750);
   }
-  // Timer de sécurité : 2.8s max
-  setTimeout(hideSplash, 2800);
+
+  // Bouton Entrer : seul moyen de fermer le splash
   window._hideSplash = hideSplash;
+
+  // Pas de fermeture automatique - l'utilisateur clique sur Entrer
 })();
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
@@ -1040,7 +1108,8 @@ if ('serviceWorker' in navigator) {
     setDot('err');
   }
   // Masquer splash dès que la DB a répondu
-  if (window._hideSplash) window._hideSplash();
+  // (on laisse l'utilisateur cliquer sur Entrer)
+  setDot('ok');
 })();
 </script>
 </body>
