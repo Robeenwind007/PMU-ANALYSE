@@ -405,8 +405,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5) sepi
 }
 .splash-cta {
   margin-top: 28px;
-  animation: fadeUpIn 0.6s 2s cubic-bezier(0.16,1,0.3,1) both;
   opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
 }
 .splash-cta button {
   background: transparent;
@@ -1077,8 +1078,6 @@ function setLoader(name, on) {
 (function() {
   const splash = document.getElementById('splash');
   let splashDone = false;
-  const startTime = Date.now();
-  const MIN_DURATION = 2500; // 2.5s minimum
 
   function hideSplash() {
     if (splashDone) return;
@@ -1087,10 +1086,17 @@ function setLoader(name, on) {
     setTimeout(() => splash.remove(), 750);
   }
 
-  // Bouton Entrer : seul moyen de fermer le splash
+  // Exposer globalement pour le bouton onclick
   window._hideSplash = hideSplash;
 
-  // Pas de fermeture automatique - l'utilisateur clique sur Entrer
+  // Afficher le bouton "Entrer" après 2s via JS (contourne les bugs iOS)
+  setTimeout(() => {
+    const cta = document.querySelector('.splash-cta');
+    if (cta) {
+      cta.style.opacity = '1';
+      cta.style.transform = 'translateY(0)';
+    }
+  }, 2000);
 })();
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
