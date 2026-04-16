@@ -1,0 +1,29 @@
+name: PMU Daily Sync
+
+on:
+  schedule:
+    # Chaque matin à 6h00 UTC (7h ou 8h heure française selon saison)
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    # Permet de déclencher manuellement depuis GitHub Actions
+
+jobs:
+  sync:
+    name: Sync PMU → Supabase
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run daily sync
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: node scripts/daily-sync.js

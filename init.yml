@@ -1,0 +1,26 @@
+name: PMU Init Historique
+
+on:
+  workflow_dispatch:
+    # Déclenchement manuel uniquement (une seule fois)
+
+jobs:
+  init:
+    name: Chargement historique 2010 → aujourd'hui
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # 6h max (5500 jours à charger)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run init
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: node scripts/init-db.js

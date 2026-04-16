@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0e1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PMU Stats">
+<link rel="manifest" href="./manifest.json">
+<title>PMU Stats</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0a0e1a;
+  --bg2:      #111827;
+  --bg3:      #1c2537;
+  --bg4:      #242f45;
+  --gold:     #c9a84c;
+  --gold-lt:  #e8c96a;
+  --gold-dim: rgba(201,168,76,0.12);
+  --gold-bdr: rgba(201,168,76,0.25);
+  --green:    #4caf82;
+  --red:      #e05c5c;
+  --blue:     #5c8de0;
+  --purple:   #9b6fe0;
+  --orange:   #e08c5c;
+  --text:     #e4ddd0;
+  --text2:    #a09080;
+  --text3:    #5a5048;
+  --radius:   14px;
+  --r-sm:     8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  min-height: 100dvh;
+  overscroll-behavior: none;
+}
+
+/* ── HEADER ── */
+header {
+  position: sticky; top: 0; z-index: 200;
+  background: rgba(10,14,26,0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--gold-bdr);
+  padding: 12px 16px 10px;
+}
+.header-inner { display: flex; align-items: center; gap: 10px; max-width: 640px; margin: 0 auto; }
+.logo-icon { font-size: 22px; line-height: 1; }
+.logo-text { flex: 1; }
+.logo-main {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px; font-weight: 900;
+  color: var(--gold); letter-spacing: -0.5px; line-height: 1;
+}
+.logo-sub {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; color: var(--text3);
+  letter-spacing: 2.5px; text-transform: uppercase; margin-top: 1px;
+}
+.sync-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--text3); transition: background 0.3s;
+}
+.sync-dot.ok  { background: var(--green); }
+.sync-dot.err { background: var(--red); }
+.sync-dot.loading { background: var(--gold); animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* ── NAV ── */
+nav {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--gold-bdr);
+  display: flex; overflow-x: auto; scrollbar-width: none;
+}
+nav::-webkit-scrollbar { display: none; }
+.nav-btn {
+  flex: 1; min-width: 70px; border: none;
+  background: none; cursor: pointer; padding: 11px 6px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s; color: var(--text3);
+}
+.nav-btn .nav-ico { font-size: 16px; line-height: 1; }
+.nav-btn .nav-lbl {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; letter-spacing: 1px; text-transform: uppercase;
+}
+.nav-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
+.nav-btn:hover:not(.active) { color: var(--text2); }
+
+/* ── MAIN ── */
+main { max-width: 640px; margin: 0 auto; padding: 16px 14px 80px; }
+.tab { display: none; animation: fadeUp 0.25s ease; }
+.tab.active { display: block; }
+@keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+
+/* ── CARDS ── */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--gold-bdr);
+  border-radius: var(--radius);
+  padding: 16px; margin-bottom: 12px;
+}
+.card-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 16px; font-weight: 700; color: var(--gold);
+  margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.card-title::after { content:''; flex:1; height:1px; background: var(--gold-bdr); }
+
+/* ── FORM ── */
+.field { margin-bottom: 12px; }
+label {
+  display: block;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--text3); margin-bottom: 5px;
+}
+input, select {
+  width: 100%; background: var(--bg3);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: var(--r-sm); color: var(--text);
+  font-family: 'DM Mono', monospace; font-size: 13px;
+  padding: 10px 12px; outline: none;
+  transition: border-color 0.2s; appearance: none;
+}
+input:focus, select:focus { border-color: var(--gold); }
+input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5) sepia(1) saturate(2) hue-rotate(10deg); }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.btn {
+  width: 100%; background: var(--gold); color: #0a0e1a;
+  border: none; border-radius: var(--r-sm);
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 13px; cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+.btn:hover  { background: var(--gold-lt); }
+.btn:active { transform: scale(0.98); }
+.btn:disabled { background: var(--text3); cursor: not-allowed; }
+.btn-sm {
+  width: auto; padding: 8px 14px; font-size: 10px;
+  background: var(--gold-dim); color: var(--gold);
+  border: 1px solid var(--gold-bdr);
+}
+.btn-sm:hover { background: var(--gold); color: #0a0e1a; }
+
+/* ── LOADER ── */
+.loader { display:none; text-align:center; padding: 48px 20px; }
+.loader.on { display:block; }
+.spinner {
+  width: 36px; height: 36px; margin: 0 auto 14px;
+  border: 3px solid var(--bg3); border-top-color: var(--gold);
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loader p { font-family:'DM Mono',monospace; font-size:11px; color:var(--text3); letter-spacing:1px; }
+
+/* ── MESSAGES ── */
+.msg { padding:24px; text-align:center; border-radius:var(--radius);
+  background:var(--bg2); border:1px solid var(--gold-bdr);
+  font-family:'DM Mono',monospace; font-size:12px; color:var(--text2); }
+.msg.err { border-color:var(--red); color:var(--red); }
+
+/* ── STAT TILES ── */
+.tiles { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+.tile {
+  background:var(--bg3); border-radius:var(--radius); padding:16px 12px; text-align:center;
+}
+.tile .val {
+  font-family:'Playfair Display',serif; font-size:30px; font-weight:700;
+  color:var(--gold); line-height:1;
+}
+.tile .lbl {
+  font-family:'DM Mono',monospace; font-size:9px; color:var(--text3);
+  letter-spacing:1.5px; text-transform:uppercase; margin-top:6px;
+}
+
+/* ── SECTION HEADER ── */
+.sh {
+  font-family:'DM Mono',monospace; font-size:10px; letter-spacing:2px;
+  text-transform:uppercase; color:var(--text3);
+  margin: 18px 0 10px;
+  display:flex; align-items:center; gap:8px;
+}
+.sh::after { content:''; flex:1; height:1px; background:var(--bg3); }
+
+/* ── COURSE CARDS ── */
+.course-card {
+  background:var(--bg2); border:1px solid var(--gold-bdr);
+  border-radius:var(--radius); margin-bottom:8px;
+  overflow:hidden; cursor:pointer; transition:border-color 0.2s;
+}
+.course-card:hover { border-color: var(--gold); }
+.course-card.open  { border-color: var(--gold-lt); }
+.cc-head { display:flex; align-items:center; gap:10px; padding:14px; }
+.rc-pill {
+  background:var(--gold-dim); border:1px solid var(--gold-bdr);
+  border-radius:6px; padding:4px 8px;
+  font-family:'DM Mono',monospace; font-size:11px; color:var(--gold);
+  white-space:nowrap; flex-shrink:0;
+}
+.cc-info { flex:1; min-width:0; }
+.cc-lieu { font-size:14px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.cc-meta { font-family:'DM Mono',monospace; font-size:10px; color:var(--text2); margin-top:2px; }
+.type-pill {
+  font-family:'DM Mono',monospace; font-size:9px; letter-spacing:0.5px;
+  padding:3px 8px; border-radius:20px; white-space:nowrap; flex-shrink:0;
+}
+.tp-Attelé  { background:rgba(92,141,224,0.15); color:var(--blue); }
+.tp-Monté   { background:rgba(155,111,224,0.15); color:var(--purple); }
+.tp-Plat    { background:rgba(76,175,130,0.15);  color:var(--green); }
+.tp-Haies   { background:rgba(224,92,92,0.15);   color:var(--red); }
+.tp-Steeple { background:rgba(201,168,76,0.15);  color:var(--gold); }
+.tp-default { background:rgba(160,144,128,0.15); color:var(--text2); }
+
+.cc-body { display:none; padding:0 14px 14px; }
+.course-card.open .cc-body { display:block; }
+
+/* podium arrivée */
+.podium { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+.podium-item { display:flex; flex-direction:column; align-items:center; gap:3px; }
+.pos-lbl { font-family:'DM Mono',monospace; font-size:9px; color:var(--text3); }
+.dos {
+  width:42px; height:42px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Playfair Display',serif; font-size:17px; font-weight:700;
+}
+.dos.p1 { background:var(--gold); color:#0a0e1a; }
+.dos.p2 { background:#9db0ba; color:#0a0e1a; }
+.dos.p3 { background:#a0724a; color:#fff; }
+.dos.px { background:var(--bg4); border:1px solid var(--bg3); color:var(--text2); font-size:14px; }
+
+.detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.dg-item { background:var(--bg3); border-radius:var(--r-sm); padding:10px 12px; }
+.dg-lbl { font-family:'DM Mono',monospace; font-size:9px; color:var(--text3); letter-spacing:1px; text-transform:uppercase; }
+.dg-val { font-size:13px; font-weight:500; margin-top:3px; }
+
+/* ── BARRES ── */
+.bars { display:flex; flex-direction:column; gap:6px; }
+.bar-row { display:flex; align-items:center; gap:8px; }
+.bar-lbl {
+  font-family:'DM Mono',monospace; font-size:11px; color:var(--text2);
+  text-align:right; flex-shrink:0; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.bar-lbl.w30 { width:30px; }
+.bar-lbl.w80 { width:80px; }
+.bar-lbl.w100 { width:100px; }
+.bar-wrap { flex:1; background:var(--bg3); border-radius:4px; height:22px; overflow:hidden; }
+.bar-fill {
+  height:100%; border-radius:4px; min-width:2px;
+  display:flex; align-items:center; padding:0 8px;
+  font-family:'DM Mono',monospace; font-size:10px; white-space:nowrap;
+  transition: width 0.7s cubic-bezier(0.16,1,0.3,1);
+}
+.bf-gold   { background:linear-gradient(90deg,var(--gold),var(--gold-lt)); color:#0a0e1a; }
+.bf-blue   { background:linear-gradient(90deg,var(--blue),#7aaae8); color:#0a0e1a; }
+.bf-green  { background:linear-gradient(90deg,var(--green),#72cfaa); color:#0a0e1a; }
+.bf-purple { background:linear-gradient(90deg,var(--purple),#b896e8); color:#0a0e1a; }
+.bf-orange { background:linear-gradient(90deg,var(--orange),#e8b07a); color:#0a0e1a; }
+.bar-val { font-family:'DM Mono',monospace; font-size:10px; color:var(--text3); width:36px; text-align:right; flex-shrink:0; }
+
+/* ── TENDANCES mini-tiles ── */
+.trend-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px; }
+.trend-tile { background:var(--bg3); border-radius:var(--r-sm); padding:12px 8px; text-align:center; }
+.trend-tile .tv { font-family:'Playfair Display',serif; font-size:22px; font-weight:700; }
+.trend-tile .tl { font-family:'DM Mono',monospace; font-size:9px; color:var(--text3); text-transform:uppercase; letter-spacing:1px; margin-top:4px; }
+
+/* ── ABOUT ── */
+.about-hero {
+  background: linear-gradient(135deg, var(--bg2), var(--bg3));
+  border: 1px solid var(--gold-bdr); border-radius: var(--radius);
+  padding: 24px; text-align: center; margin-bottom: 12px;
+}
+.about-hero .big { font-family:'Playfair Display',serif; font-size:48px; line-height:1; margin-bottom:8px; }
+.about-hero h2 { font-family:'Playfair Display',serif; font-size:20px; color:var(--gold); }
+.about-hero p { font-size:13px; color:var(--text2); margin-top:6px; line-height:1.5; }
+.about-tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:14px; justify-content:center; }
+.tag {
+  background:var(--gold-dim); border:1px solid var(--gold-bdr);
+  border-radius:20px; padding:4px 12px;
+  font-family:'DM Mono',monospace; font-size:10px; color:var(--gold);
+}
+
+/* ── ANALYSE AVANCÉE ── */
+.period-selector { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+.period-btn {
+  background:var(--bg3); border:1px solid var(--bg4);
+  border-radius:20px; padding:6px 12px;
+  font-family:'DM Mono',monospace; font-size:10px; color:var(--text2);
+  cursor:pointer; transition:all 0.2s;
+}
+.period-btn.active { background:var(--gold-dim); border-color:var(--gold); color:var(--gold); }
+
+/* scrollbar personnalisé */
+::-webkit-scrollbar { width:4px; height:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--bg4); border-radius:2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo-icon">🏇</div>
+    <div class="logo-text">
+      <div class="logo-main">PMU Stats</div>
+      <div class="logo-sub">Analyse des courses</div>
+    </div>
+    <div class="sync-dot" id="syncDot" title="Statut base de données"></div>
+  </div>
+</header>
+
+<nav>
+  <button class="nav-btn active" onclick="showTab('tab-jour')" id="nb-jour">
+    <span class="nav-ico">📅</span><span class="nav-lbl">Journée</span>
+  </button>
+  <button class="nav-btn" onclick="showTab('tab-dossard')" id="nb-dossard">
+    <span class="nav-ico">🔢</span><span class="nav-lbl">Dossards</span>
+  </button>
+  <button class="nav-btn" onclick="showTab('tab-hippo')" id="nb-hippo">
+    <span class="nav-ico">🏟</span><span class="nav-lbl">Hippodromes</span>
+  </button>
+  <button class="nav-btn" onclick="showTab('tab-type')" id="nb-type">
+    <span class="nav-ico">📊</span><span class="nav-lbl">Types</span>
+  </button>
+  <button class="nav-btn" onclick="showTab('tab-about')" id="nb-about">
+    <span class="nav-ico">ℹ️</span><span class="nav-lbl">Infos</span>
+  </button>
+</nav>
+
+<main>
+
+<!-- ═══ TAB : JOURNÉE ═══ -->
+<div class="tab active" id="tab-jour">
+  <div class="card">
+    <div class="card-title">🔍 Recherche par date</div>
+    <div class="field">
+      <label>Date</label>
+      <input type="date" id="inp-date">
+    </div>
+    <button class="btn" id="btn-jour" onclick="loadJour()">Afficher les courses</button>
+  </div>
+  <div class="loader" id="load-jour"><div class="spinner"></div><p>Chargement...</p></div>
+  <div id="res-jour"></div>
+</div>
+
+<!-- ═══ TAB : DOSSARDS ═══ -->
+<div class="tab" id="tab-dossard">
+  <div class="card">
+    <div class="card-title">🔢 Fréquence de victoire par dossard</div>
+    <div class="field">
+      <label>Période d'analyse</label>
+      <div class="period-selector" id="period-dossard">
+        <button class="period-btn" onclick="setPeriod('dossard','1M',this)">1 mois</button>
+        <button class="period-btn" onclick="setPeriod('dossard','6M',this)">6 mois</button>
+        <button class="period-btn active" onclick="setPeriod('dossard','1A',this)">1 an</button>
+        <button class="period-btn" onclick="setPeriod('dossard','5A',this)">5 ans</button>
+        <button class="period-btn" onclick="setPeriod('dossard','ALL',this)">Tout</button>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Type de course</label>
+        <select id="sel-dossard-type">
+          <option value="">Tous types</option>
+          <option>Attelé</option><option>Monté</option>
+          <option>Plat</option><option>Haies</option><option>Steeple</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Position analysée</label>
+        <select id="sel-dossard-pos">
+          <option value="0">1ère place</option>
+          <option value="0,1">Top 2</option>
+          <option value="0,1,2">Top 3</option>
+          <option value="0,1,2,3,4">Top 5</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn" onclick="loadDossards()">Analyser</button>
+  </div>
+  <div class="loader" id="load-dossard"><div class="spinner"></div><p>Analyse en cours...</p></div>
+  <div id="res-dossard"></div>
+</div>
+
+<!-- ═══ TAB : HIPPODROMES ═══ -->
+<div class="tab" id="tab-hippo">
+  <div class="card">
+    <div class="card-title">🏟 Performance par hippodrome</div>
+    <div class="field">
+      <label>Période</label>
+      <div class="period-selector">
+        <button class="period-btn" onclick="setPeriod('hippo','1M',this)">1 mois</button>
+        <button class="period-btn" onclick="setPeriod('hippo','6M',this)">6 mois</button>
+        <button class="period-btn active" onclick="setPeriod('hippo','1A',this)">1 an</button>
+        <button class="period-btn" onclick="setPeriod('hippo','5A',this)">5 ans</button>
+        <button class="period-btn" onclick="setPeriod('hippo','ALL',this)">Tout</button>
+      </div>
+    </div>
+    <button class="btn" onclick="loadHippos()">Analyser</button>
+  </div>
+  <div class="loader" id="load-hippo"><div class="spinner"></div><p>Analyse en cours...</p></div>
+  <div id="res-hippo"></div>
+</div>
+
+<!-- ═══ TAB : TYPES ═══ -->
+<div class="tab" id="tab-type">
+  <div class="card">
+    <div class="card-title">📊 Analyse par type de course</div>
+    <div class="field">
+      <label>Période</label>
+      <div class="period-selector">
+        <button class="period-btn" onclick="setPeriod('type','1M',this)">1 mois</button>
+        <button class="period-btn" onclick="setPeriod('type','6M',this)">6 mois</button>
+        <button class="period-btn active" onclick="setPeriod('type','1A',this)">1 an</button>
+        <button class="period-btn" onclick="setPeriod('type','5A',this)">5 ans</button>
+        <button class="period-btn" onclick="setPeriod('type','ALL',this)">Tout</button>
+      </div>
+    </div>
+    <button class="btn" onclick="loadTypes()">Analyser</button>
+  </div>
+  <div class="loader" id="load-type"><div class="spinner"></div><p>Analyse en cours...</p></div>
+  <div id="res-type"></div>
+</div>
+
+<!-- ═══ TAB : ABOUT ═══ -->
+<div class="tab" id="tab-about">
+  <div class="about-hero">
+    <div class="big">🏇</div>
+    <h2>PMU Stats</h2>
+    <p>Analyse des arrivées de courses hippiques<br>depuis 2010 — données Supabase</p>
+    <div class="about-tags">
+      <span class="tag">PWA</span>
+      <span class="tag">Supabase</span>
+      <span class="tag">open-pmu-api</span>
+      <span class="tag">GitHub Actions</span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">📡 État de la base</div>
+    <div id="db-stats"><div class="msg">Chargement...</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">📖 Fonctionnalités</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="dg-item"><div class="dg-lbl">Journée</div><div class="dg-val" style="font-size:13px;color:var(--text2)">Toutes les courses d'une date avec arrivées et détails</div></div>
+      <div class="dg-item"><div class="dg-lbl">Dossards</div><div class="dg-val" style="font-size:13px;color:var(--text2)">Fréquence de victoire par numéro de dossard</div></div>
+      <div class="dg-item"><div class="dg-lbl">Hippodromes</div><div class="dg-val" style="font-size:13px;color:var(--text2)">Classement et statistiques par lieu de course</div></div>
+      <div class="dg-item"><div class="dg-lbl">Types</div><div class="dg-val" style="font-size:13px;color:var(--text2)">Répartition Attelé / Monté / Plat / Haies / Steeple</div></div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+const SB_URL = 'https://njohmpmbxemeieqakszw.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5qb2htcG1ieGVtZWllcWFrc3p3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyNTU0NzYsImV4cCI6MjA5MTgzMTQ3Nn0.7JuaSZuQeVRaO5iQSpGbBBiF_smH0FXnHKU0LvlTCf8';
+const HEADERS = { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` };
+
+// ── PÉRIODES ──────────────────────────────────────────────────────────────────
+const periods = { dossard: '1A', hippo: '1A', type: '1A' };
+
+function periodToDate(p) {
+  const d = new Date();
+  if (p === '1M')  { d.setMonth(d.getMonth() - 1); }
+  else if (p === '6M')  { d.setMonth(d.getMonth() - 6); }
+  else if (p === '1A')  { d.setFullYear(d.getFullYear() - 1); }
+  else if (p === '5A')  { d.setFullYear(d.getFullYear() - 5); }
+  else return '2010-01-01';
+  return d.toISOString().slice(0, 10);
+}
+
+function setPeriod(tab, val, btn) {
+  periods[tab] = val;
+  btn.closest('.period-selector').querySelectorAll('.period-btn')
+    .forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────────
+function showTab(id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const map = { 'tab-jour':'nb-jour','tab-dossard':'nb-dossard','tab-hippo':'nb-hippo','tab-type':'nb-type','tab-about':'nb-about' };
+  document.getElementById(map[id]).classList.add('active');
+  if (id === 'tab-about') loadDbStats();
+}
+
+// ── SUPABASE FETCH ────────────────────────────────────────────────────────────
+async function sbFetch(endpoint) {
+  const res = await fetch(`${SB_URL}/rest/v1/${endpoint}`, { headers: HEADERS });
+  if (!res.ok) throw new Error(`Supabase ${res.status}`);
+  return res.json();
+}
+
+// ── SYNC DOT ──────────────────────────────────────────────────────────────────
+function setDot(state) {
+  const d = document.getElementById('syncDot');
+  d.className = 'sync-dot ' + state;
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function typePill(type) {
+  const t = type || '';
+  const cls = ['Attelé','Monté','Plat','Haies','Steeple'].includes(t) ? `tp-${t}` : 'tp-default';
+  return `<span class="type-pill ${cls}">${t || '—'}</span>`;
+}
+
+function fmtMontant(n) {
+  if (!n) return '—';
+  return new Intl.NumberFormat('fr-FR', { style:'currency', currency:'EUR', maximumFractionDigits:0 }).format(n);
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+}
+
+function buildBars(items, labelKey, valKey, colorClass, maxW = 100) {
+  if (!items.length) return '<div class="msg">Aucune donnée</div>';
+  const max = Math.max(...items.map(i => i[valKey]));
+  return `<div class="bars">${items.map(item => {
+    const pct = Math.round((item[valKey] / max) * maxW);
+    const lbl = String(item[labelKey]);
+    const isNum = lbl.length <= 3;
+    return `
+    <div class="bar-row">
+      <div class="bar-lbl ${isNum ? 'w30' : 'w100'}" title="${lbl}">${lbl}</div>
+      <div class="bar-wrap">
+        <div class="bar-fill ${colorClass}" style="width:${pct}%">${pct > 20 ? item[valKey] : ''}</div>
+      </div>
+      <div class="bar-val">${item[valKey]}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+// ── TAB JOURNÉE ───────────────────────────────────────────────────────────────
+(function initDate() {
+  const inp = document.getElementById('inp-date');
+  const y = new Date(); inp.max = y.toISOString().slice(0,10);
+  y.setDate(y.getDate() - 1); inp.value = y.toISOString().slice(0,10);
+})();
+
+async function loadJour() {
+  const date = document.getElementById('inp-date').value;
+  if (!date) return;
+  setLoader('jour', true);
+  document.getElementById('res-jour').innerHTML = '';
+  setDot('loading');
+  try {
+    const data = await sbFetch(`courses?select=*&date=eq.${date}&order=rc.asc&limit=50`);
+    setDot('ok');
+    renderJour(date, data);
+  } catch(e) {
+    setDot('err');
+    document.getElementById('res-jour').innerHTML = `<div class="msg err">Erreur : ${e.message}</div>`;
+  }
+  setLoader('jour', false);
+}
+
+function renderJour(date, data) {
+  const el = document.getElementById('res-jour');
+  if (!data.length) { el.innerHTML = '<div class="msg">Aucune course trouvée pour cette date.</div>'; return; }
+
+  // Stats résumé
+  const types = {};
+  data.forEach(c => { if(c.type) types[c.type] = (types[c.type]||0)+1; });
+  const typeSummary = Object.entries(types).map(([t,n]) => `${typePill(t)} ×${n}`).join(' ');
+
+  let html = `
+  <div class="tiles">
+    <div class="tile"><div class="val">${data.length}</div><div class="lbl">Courses</div></div>
+    <div class="tile"><div class="val">${[...new Set(data.map(c=>c.lieu).filter(Boolean))].length}</div><div class="lbl">Hippodromes</div></div>
+  </div>
+  <div style="margin-bottom:14px;display:flex;flex-wrap:wrap;gap:6px;">${typeSummary}</div>
+  <div class="sh">Détail des courses</div>`;
+
+  data.forEach(c => {
+    const arrivee = Array.isArray(c.arrivee) ? c.arrivee : [];
+    const podiumHTML = arrivee.map((n, i) => {
+      const cls = i===0?'p1':i===1?'p2':i===2?'p3':'px';
+      const lbl = ['1er','2e','3e','4e','5e'][i] || `${i+1}e`;
+      return `<div class="podium-item"><div class="pos-lbl">${lbl}</div><div class="dos ${cls}">${n}</div></div>`;
+    }).join('');
+
+    const npArr = Array.isArray(c.non_partants) ? c.non_partants : [];
+    html += `
+    <div class="course-card" onclick="toggleCard(this)">
+      <div class="cc-head">
+        <div class="rc-pill">${c.rc||'?'}</div>
+        <div class="cc-info">
+          <div class="cc-lieu">${c.lieu||'—'}</div>
+          <div class="cc-meta">${c.partants||'?'} partants · ${c.distance||'?'}m</div>
+        </div>
+        ${typePill(c.type)}
+      </div>
+      <div class="cc-body">
+        <div class="sh" style="margin-top:0">Arrivée</div>
+        <div class="podium">${podiumHTML || '<span style="color:var(--text3);font-size:12px">Non disponible</span>'}</div>
+        <div class="detail-grid">
+          <div class="dg-item"><div class="dg-lbl">Prix</div><div class="dg-val" style="font-size:12px">${c.prix||'—'}</div></div>
+          <div class="dg-item"><div class="dg-lbl">Dotation</div><div class="dg-val" style="font-size:13px;color:var(--gold)">${fmtMontant(c.montant)}</div></div>
+          <div class="dg-item"><div class="dg-lbl">Partants</div><div class="dg-val">${c.partants||'—'}</div></div>
+          <div class="dg-item"><div class="dg-lbl">Non partants</div><div class="dg-val" style="font-size:12px">${npArr.length ? npArr.join(', ') : 'Aucun'}</div></div>
+        </div>
+      </div>
+    </div>`;
+  });
+
+  el.innerHTML = html;
+}
+
+function toggleCard(el) { el.classList.toggle('open'); }
+
+// ── TAB DOSSARDS ──────────────────────────────────────────────────────────────
+async function loadDossards() {
+  setLoader('dossard', true);
+  document.getElementById('res-dossard').innerHTML = '';
+  setDot('loading');
+  try {
+    const since = periodToDate(periods.dossard);
+    const typeFilter = document.getElementById('sel-dossard-type').value;
+    const posVal = document.getElementById('sel-dossard-pos').value;
+    const positions = posVal.split(',').map(Number);
+
+    let url = `courses?select=arrivee,partants,type&date=gte.${since}&arrivee=not.is.null`;
+    if (typeFilter) url += `&type=eq.${encodeURIComponent(typeFilter)}`;
+    url += `&limit=50000`;
+
+    const data = await sbFetch(url);
+    setDot('ok');
+    renderDossards(data, positions);
+  } catch(e) {
+    setDot('err');
+    document.getElementById('res-dossard').innerHTML = `<div class="msg err">Erreur : ${e.message}</div>`;
+  }
+  setLoader('dossard', false);
+}
+
+function renderDossards(data, positions) {
+  const el = document.getElementById('res-dossard');
+  if (!data.length) { el.innerHTML = '<div class="msg">Aucune donnée pour cette période.</div>'; return; }
+
+  // Comptage par dossard
+  const counts = {};
+  const totals = {};
+  data.forEach(c => {
+    const arr = Array.isArray(c.arrivee) ? c.arrivee : [];
+    arr.forEach((dos, idx) => {
+      if (positions.includes(idx)) counts[dos] = (counts[dos]||0)+1;
+    });
+    // compter total courses par dossard pour taux
+    arr.forEach(dos => { totals[dos] = (totals[dos]||0)+1; });
+  });
+
+  const items = Object.entries(counts)
+    .map(([dos,n]) => ({ dos: parseInt(dos), n, pct: Math.round((n/data.length)*1000)/10 }))
+    .sort((a,b) => b.n - a.n)
+    .slice(0, 20);
+
+  const top3 = items.slice(0, 3);
+
+  let html = `
+  <div class="tiles">
+    <div class="tile"><div class="val">${data.length.toLocaleString('fr-FR')}</div><div class="lbl">Courses analysées</div></div>
+    <div class="tile"><div class="val">${Object.keys(counts).length}</div><div class="lbl">Dossards actifs</div></div>
+  </div>
+  <div class="sh">Top 3 dossards</div>
+  <div class="trend-row">
+    ${top3.map((d,i) => `
+    <div class="trend-tile">
+      <div class="tv" style="color:${i===0?'var(--gold)':i===1?'#9db0ba':'#a0724a'}">${d.dos}</div>
+      <div class="tl">${d.n} victoires</div>
+    </div>`).join('')}
+  </div>
+  <div class="sh">Classement complet (top 20)</div>
+  ${buildBars(items.map(i=>({l:i.dos,v:i.n})), 'l', 'v', 'bf-gold')}`;
+
+  el.innerHTML = html;
+  // re-render avec noms corrects
+  el.querySelector('.bars').innerHTML = items.map(item => `
+    <div class="bar-row">
+      <div class="bar-lbl w30">N°${item.dos}</div>
+      <div class="bar-wrap">
+        <div class="bar-fill bf-gold" style="width:${Math.round((item.n/items[0].n)*100)}%">${item.n}</div>
+      </div>
+      <div class="bar-val">${item.pct}%</div>
+    </div>`).join('');
+}
+
+// ── TAB HIPPODROMES ───────────────────────────────────────────────────────────
+async function loadHippos() {
+  setLoader('hippo', true);
+  document.getElementById('res-hippo').innerHTML = '';
+  setDot('loading');
+  try {
+    const since = periodToDate(periods.hippo);
+    const data = await sbFetch(`courses?select=lieu,type,partants,montant&date=gte.${since}&lieu=not.is.null&limit=50000`);
+    setDot('ok');
+    renderHippos(data);
+  } catch(e) {
+    setDot('err');
+    document.getElementById('res-hippo').innerHTML = `<div class="msg err">Erreur : ${e.message}</div>`;
+  }
+  setLoader('hippo', false);
+}
+
+function renderHippos(data) {
+  const el = document.getElementById('res-hippo');
+  if (!data.length) { el.innerHTML = '<div class="msg">Aucune donnée.</div>'; return; }
+
+  const hippos = {};
+  data.forEach(c => {
+    const l = c.lieu;
+    if (!l) return;
+    if (!hippos[l]) hippos[l] = { n:0, partants:0, montant:0 };
+    hippos[l].n++;
+    hippos[l].partants += c.partants||0;
+    hippos[l].montant  += c.montant||0;
+  });
+
+  const items = Object.entries(hippos)
+    .map(([l,v]) => ({ l, n:v.n, moy_part: Math.round(v.partants/v.n), moy_mont: Math.round(v.montant/v.n) }))
+    .sort((a,b) => b.n - a.n);
+
+  const top = items.slice(0,3);
+
+  let html = `
+  <div class="tiles">
+    <div class="tile"><div class="val">${items.length}</div><div class="lbl">Hippodromes</div></div>
+    <div class="tile"><div class="val">${data.length.toLocaleString('fr-FR')}</div><div class="lbl">Courses</div></div>
+  </div>
+  <div class="sh">Top hippodromes (par nb de courses)</div>
+  <div class="bars">
+  ${items.slice(0,15).map((item,i) => `
+    <div class="bar-row">
+      <div class="bar-lbl w100" title="${item.l}">${item.l}</div>
+      <div class="bar-wrap">
+        <div class="bar-fill bf-blue" style="width:${Math.round((item.n/items[0].n)*100)}%">${item.n}</div>
+      </div>
+      <div class="bar-val">${item.n}</div>
+    </div>`).join('')}
+  </div>
+  <div class="sh">Dotation moyenne par hippodrome (top 10)</div>
+  <div class="bars">
+  ${items.slice(0,10).sort((a,b)=>b.moy_mont-a.moy_mont).map(item => `
+    <div class="bar-row">
+      <div class="bar-lbl w100" title="${item.l}">${item.l}</div>
+      <div class="bar-wrap">
+        <div class="bar-fill bf-gold" style="width:${Math.round((item.moy_mont/items.sort((a,b)=>b.moy_mont-a.moy_mont)[0].moy_mont)*100)}%">${fmtMontant(item.moy_mont)}</div>
+      </div>
+      <div class="bar-val"></div>
+    </div>`).join('')}
+  </div>`;
+
+  el.innerHTML = html;
+}
+
+// ── TAB TYPES ─────────────────────────────────────────────────────────────────
+async function loadTypes() {
+  setLoader('type', true);
+  document.getElementById('res-type').innerHTML = '';
+  setDot('loading');
+  try {
+    const since = periodToDate(periods.type);
+    const data = await sbFetch(`courses?select=type,partants,montant,distance,arrivee&date=gte.${since}&type=not.is.null&limit=50000`);
+    setDot('ok');
+    renderTypes(data);
+  } catch(e) {
+    setDot('err');
+    document.getElementById('res-type').innerHTML = `<div class="msg err">Erreur : ${e.message}</div>`;
+  }
+  setLoader('type', false);
+}
+
+function renderTypes(data) {
+  const el = document.getElementById('res-type');
+  if (!data.length) { el.innerHTML = '<div class="msg">Aucune donnée.</div>'; return; }
+
+  const types = {};
+  data.forEach(c => {
+    const t = c.type;
+    if (!t) return;
+    if (!types[t]) types[t] = { n:0, partants:0, montant:0, distance:0, dp:0, dd:0 };
+    types[t].n++;
+    if (c.partants) { types[t].partants += c.partants; types[t].dp++; }
+    if (c.montant)  { types[t].montant  += c.montant;  }
+    if (c.distance) { types[t].distance += c.distance; types[t].dd++; }
+
+    // dossard 1 victoires
+    const arr = Array.isArray(c.arrivee) ? c.arrivee : [];
+    if (arr[0] === 1) types[t].dos1 = (types[t].dos1||0)+1;
+  });
+
+  const colors = { 'Attelé':'bf-blue','Monté':'bf-purple','Plat':'bf-green','Haies':'bf-orange','Steeple':'bf-gold' };
+  const items = Object.entries(types).sort((a,b)=>b[1].n-a[1].n);
+  const totalN = items.reduce((s,[,v])=>s+v.n,0);
+
+  let html = `
+  <div class="tiles">
+    <div class="tile"><div class="val">${items.length}</div><div class="lbl">Types</div></div>
+    <div class="tile"><div class="val">${totalN.toLocaleString('fr-FR')}</div><div class="lbl">Courses total</div></div>
+  </div>
+  <div class="sh">Répartition par type</div>
+  <div class="bars">
+  ${items.map(([t,v]) => `
+    <div class="bar-row">
+      <div class="bar-lbl w80">${t}</div>
+      <div class="bar-wrap">
+        <div class="bar-fill ${colors[t]||'bf-gold'}" style="width:${Math.round((v.n/items[0][1].n)*100)}%">${v.n}</div>
+      </div>
+      <div class="bar-val">${Math.round((v.n/totalN)*100)}%</div>
+    </div>`).join('')}
+  </div>
+  <div class="sh">Statistiques détaillées</div>
+  ${items.map(([t,v]) => `
+  <div class="card" style="margin-bottom:10px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      ${typePill(t)}
+      <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)">${v.n} courses</span>
+    </div>
+    <div class="detail-grid">
+      <div class="dg-item"><div class="dg-lbl">Moy. partants</div><div class="dg-val">${v.dp?Math.round(v.partants/v.dp):'—'}</div></div>
+      <div class="dg-item"><div class="dg-lbl">Distance moy.</div><div class="dg-val">${v.dd?Math.round(v.distance/v.dd)+' m':'—'}</div></div>
+      <div class="dg-item"><div class="dg-lbl">Dotation moy.</div><div class="dg-val" style="color:var(--gold)">${v.montant?fmtMontant(Math.round(v.montant/v.n)):'—'}</div></div>
+      <div class="dg-item"><div class="dg-lbl">% N°1 gagnant</div><div class="dg-val">${v.dos1?Math.round((v.dos1/v.n)*100)+'%':'—'}</div></div>
+    </div>
+  </div>`).join('')}`;
+
+  el.innerHTML = html;
+}
+
+// ── DB STATS (about) ──────────────────────────────────────────────────────────
+async function loadDbStats() {
+  try {
+    const [count, latest] = await Promise.all([
+      sbFetch('courses?select=id&limit=1&offset=999999'),
+      sbFetch('courses?select=date&order=date.desc&limit=1')
+    ]);
+    const total = await fetch(`${SB_URL}/rest/v1/courses?select=count`, {
+      headers: { ...HEADERS, 'Prefer':'count=exact', 'Range-Unit':'items', 'Range':'0-0' }
+    }).then(r => parseInt(r.headers.get('content-range')?.split('/')[1]||'0'));
+
+    const lastDate = latest[0]?.date || '—';
+    document.getElementById('db-stats').innerHTML = `
+    <div class="tiles">
+      <div class="tile"><div class="val">${total.toLocaleString('fr-FR')}</div><div class="lbl">Courses en base</div></div>
+      <div class="tile"><div class="val">${lastDate ? new Date(lastDate).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '—'}</div><div class="lbl">Dernière sync</div></div>
+    </div>`;
+  } catch(e) {
+    document.getElementById('db-stats').innerHTML = `<div class="msg err">Erreur connexion Supabase</div>`;
+  }
+}
+
+// ── LOADER HELPER ─────────────────────────────────────────────────────────────
+function setLoader(name, on) {
+  document.getElementById(`load-${name}`).classList.toggle('on', on);
+  const btns = document.querySelectorAll(`#tab-${name} .btn:not(.btn-sm)`);
+  btns.forEach(b => b.disabled = on);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
+// Ping Supabase au démarrage
+(async () => {
+  setDot('loading');
+  try {
+    await sbFetch('courses?select=id&limit=1');
+    setDot('ok');
+  } catch {
+    setDot('err');
+  }
+})();
+</script>
+</body>
+</html>
