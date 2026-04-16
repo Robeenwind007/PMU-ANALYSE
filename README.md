@@ -2,66 +2,95 @@
 
 PWA d'analyse des arrivées de courses PMU — données Supabase, déploiement Vercel.
 
+**Version** : v1.0.0  
+**Auteur** : Olivier BERNARD  
+**URL** : [pmu-courses.vercel.app](https://pmu-courses.vercel.app)
+
+---
+
 ## Architecture
 
 ```
 open-pmu-api (source) → GitHub Actions (cron) → Supabase (BDD) → PWA Vercel (front)
 ```
 
-## 1. Créer la table Supabase
+## Fonctionnalités
 
-Dans ton dashboard Supabase → **SQL Editor**, exécute le contenu de `scripts/create-table.sql`.
+- 📅 **Journée** — toutes les courses d'une date avec arrivées, partants, dotations
+- 🔢 **Dossards** — fréquence de victoire par numéro sur période choisie (1 mois → tout)
+- 🏟 **Hippodromes** — classement par volume de courses et dotation moyenne
+- 📊 **Types** — répartition et stats par type (Attelé, Monté, Plat, Haies, Steeple)
+- 💾 **Base de données** — historique depuis le 22/01/2004, mise à jour quotidienne automatique
+- 📱 **PWA** — installable sur iOS et Android
 
-## 2. Ajouter les secrets GitHub
+## Base de données Supabase
 
-Dans ton repo GitHub → **Settings → Secrets → Actions**, ajouter :
+**Projet** : `njohmpmbxemeieqakszw.supabase.co`  
+**Table** : `courses`
+
+| Colonne | Type | Description |
+|---|---|---|
+| `date` | DATE | Date de la course |
+| `reunion` | TEXT | Réunion (ex: R1) |
+| `course` | TEXT | Course (ex: C4) |
+| `rc` | TEXT | Identifiant (ex: R1C4) |
+| `lieu` | TEXT | Hippodrome |
+| `type` | TEXT | Attelé / Monté / Plat / Haies / Steeple |
+| `prix` | TEXT | Nom du prix |
+| `distance` | INTEGER | Distance en mètres |
+| `montant` | BIGINT | Dotation en euros |
+| `partants` | INTEGER | Nombre de partants |
+| `non_partants` | JSONB | Numéros non partants |
+| `arrivee` | JSONB | 5 premiers (numéros de dossard) |
+
+## Déploiement
+
+### Secrets GitHub requis
+
+Dans **Settings → Secrets → Actions** :
 
 | Secret | Valeur |
-|--------|--------|
+|---|---|
 | `SUPABASE_URL` | `https://njohmpmbxemeieqakszw.supabase.co` |
-| `SUPABASE_SERVICE_KEY` | Ta clé `service_role` (Settings → API dans Supabase) |
+| `SUPABASE_SERVICE_KEY` | Clé `service_role` Supabase |
 
-> ⚠️ La clé `service_role` est **différente** de la clé `anon`. Elle permet l'écriture. Ne jamais l'exposer dans le front.
+### Workflows GitHub Actions
 
-## 3. Charger l'historique (une seule fois)
+| Workflow | Déclenchement | Rôle |
+|---|---|---|
+| `PMU Init Historique` | Manuel | Chargement historique depuis 2004 |
+| `PMU Daily Sync` | Cron 6h UTC | Sync quotidienne (J-1 + J-2 rattrapage) |
 
-Dans GitHub → **Actions → PMU Init Historique → Run workflow**
+### Vercel
 
-Le script charge toutes les courses de 2010 à aujourd'hui (~5 500 jours).  
-Durée estimée : 2 à 4 heures.
-
-## 4. Déployer sur Vercel
-
-1. Aller sur [vercel.com](https://vercel.com) → New Project
-2. Importer le repo `PMU-STATS`
-3. Framework : **Other** (pas de build)
-4. Root directory : `/`
-5. Deploy → l'URL est prête
-
-## 5. Sync quotidienne automatique
-
-Le fichier `.github/workflows/daily.yml` déclenche automatiquement chaque matin à 6h UTC la sync de la veille.
-
-Pour déclencher manuellement : **Actions → PMU Daily Sync → Run workflow**
+Importation directe depuis GitHub, framework **Other**, root `/`.  
+Redéploiement automatique à chaque push sur `main`.
 
 ## Structure des fichiers
 
 ```
-├── index.html              ← PWA complète (front)
-├── manifest.json           ← Manifest PWA
-├── sw.js                   ← Service Worker
+├── index.html                    ← PWA complète (front)
+├── manifest.json                 ← Manifest PWA
+├── sw.js                         ← Service Worker
+├── favicon.ico                   ← Favicon
+├── favicon-32.png                ← Favicon 32px
+├── apple-touch-icon.png          ← Icône iOS 180px
+├── icon-192.png                  ← Icône PWA 192px
+├── icon-512.png                  ← Icône PWA 512px
 ├── scripts/
-│   ├── create-table.sql    ← Schema Supabase (à exécuter une fois)
-│   ├── init-db.js          ← Chargement historique 2010→aujourd'hui
-│   └── daily-sync.js       ← Sync quotidienne (J-1 + J-2 rattrapage)
+│   ├── create-table.sql          ← Schéma Supabase (exécuté une fois)
+│   ├── init-db.js                ← Chargement historique 2004 → aujourd'hui
+│   └── daily-sync.js             ← Sync quotidienne
 └── .github/workflows/
-    ├── init.yml            ← Workflow init (manuel)
-    └── daily.yml           ← Workflow quotidien (cron 6h UTC)
+    ├── init.yml                  ← Workflow init (manuel)
+    └── daily.yml                 ← Workflow quotidien (cron)
 ```
 
-## Fonctionnalités de l'appli
+## Source des données
 
-- 📅 **Journée** : toutes les courses d'une date, arrivées, partants, dotations
-- 🔢 **Dossards** : fréquence de victoire par numéro sur période choisie
-- 🏟 **Hippodromes** : classement par volume et dotation moyenne
-- 📊 **Types** : répartition et stats par type (Attelé, Monté, Plat, Haies, Steeple)
+[open-pmu-api](https://github.com/nanaelie/open-pmu-api) — API REST open source  
+Données disponibles du 22/01/2004 à aujourd'hui, mises à jour régulièrement.
+
+---
+
+© 2026 Olivier BERNARD — Tous droits réservés
