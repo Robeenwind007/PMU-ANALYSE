@@ -1,10 +1,10 @@
 {
-  "name": "PMU Stats & Analyse",
-  "short_name": "PMU Stats",
-  "description": "Analyse des arrivées de courses PMU depuis 2010",
+  "name": "Lucky Thunes",
+  "short_name": "Lucky",
+  "description": "Paris hippiques & loteries — analyse statistique",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0a0e1a",
+  "background_color": "#080d18",
   "theme_color": "#c9a84c",
   "orientation": "portrait-primary",
   "icons": [
