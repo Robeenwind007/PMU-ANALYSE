@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """
-sync-euromillions.py — Synchronisation quotidienne Euromillions FDJ → Supabase
-Télécharge le fichier ZIP le plus récent de la FDJ et met à jour Supabase.
-Déclenché chaque matin par GitHub Actions.
+sync-euromillions.py — Synchro Euromillions → Supabase
+Récupère les derniers tirages via scraping puis ajoute dans Supabase.
 """
 
-import os, sys, json, csv, io, zipfile
+import os, sys, json, re
 from datetime import datetime
 import urllib.request, urllib.error
 
@@ -16,68 +15,78 @@ if not SUPABASE_KEY:
     print('❌  SUPABASE_SERVICE_KEY manquante')
     sys.exit(1)
 
-# URL FDJ — le fichier _2 est le plus récent (Euromillions My Million depuis 2020)
-# Les anciens fichiers (_0, _1) ne changent plus car historiques figés
-FDJ_URLS = [
-    'https://media.fdj.fr/generated/game/euromillions/euromillions_202002.zip',
-    'https://media.fdj.fr/static/csv/euromillions/euromillions_202002.zip',
-]
+UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
 
-# ── Parsers ───────────────────────────────────────────────────────────────────
-def parse_date(s):
-    s = s.strip()
-    for fmt in ['%Y%m%d', '%d/%m/%Y', '%d/%m/%y']:
-        try: return datetime.strptime(s, fmt).strftime('%Y-%m-%d')
-        except ValueError: pass
-    return None
+MOIS = {'janvier':1,'février':2,'fevrier':2,'mars':3,'avril':4,'mai':5,'juin':6,
+        'juillet':7,'août':8,'aout':8,'septembre':9,'octobre':10,'novembre':11,'décembre':12,'decembre':12}
 
-def detect_format(header_cols):
-    if len(header_cols) >= 75: return True, 5
-    return False, 4
+# ── Scraping ──────────────────────────────────────────────────────────────────
+def fetch_page(url):
+    req = urllib.request.Request(url, headers={'User-Agent': UA})
+    with urllib.request.urlopen(req, timeout=25) as r:
+        return r.read().decode('utf-8', errors='ignore')
 
-def parse_row(row, has_cycle, b_off):
-    if len(row) < b_off + 7: return None
-    date_str = parse_date(row[2])
-    if not date_str: return None
-    jour = row[1].strip().upper()[:8]
-    if jour.startswith('MA'): jour = 'MARDI'
-    elif jour.startswith('VE'): jour = 'VENDREDI'
+def scrape_secretsdujeu():
+    """Récupère les derniers tirages depuis secretsdujeu.com"""
+    draws = []
     try:
-        b1,b2,b3,b4,b5 = [int(row[b_off+i]) for i in range(5)]
-        e1,e2 = int(row[b_off+5]), int(row[b_off+6])
-    except: return None
-    boules = sorted([b1,b2,b3,b4,b5])
-    etoiles = sorted([e1,e2])
-    if not all(1<=x<=50 for x in boules): return None
-    if not all(1<=x<=12 for x in etoiles): return None
-    return {
-        'date_tirage': date_str,
-        'jour': jour,
-        'boule_1': b1, 'boule_2': b2, 'boule_3': b3,
-        'boule_4': b4, 'boule_5': b5,
-        'etoile_1': e1, 'etoile_2': e2,
-        'boules': json.dumps(boules),
-        'etoiles': json.dumps(etoiles)
-    }
+        html = fetch_page('https://www.secretsdujeu.com/euromillion/resultat')
 
-# ── Téléchargement ZIP FDJ ────────────────────────────────────────────────────
-def download_fdj():
-    for url in FDJ_URLS:
-        print(f'📥  Tentative: {url}')
-        try:
-            req = urllib.request.Request(url, headers={
-                'User-Agent': 'Mozilla/5.0 (compatible; LuckyThunesBot/1.0)'
-            })
-            with urllib.request.urlopen(req, timeout=30) as r:
-                return r.read()
-        except Exception as e:
-            print(f'  ⚠️  Échec: {e}')
-    return None
+        # Chercher "XX MONTH YYYY ... 1, 2, 4, 28 et 44, ainsi que les étoiles 5 et 12"
+        pattern = r'(mardi|vendredi)\s+(\d{1,2})\s+(janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre)\s+(\d{4})[^.]{10,400}?((?:\d{1,2}[,\s\-et]+){4}\d{1,2})[^.]{3,80}?étoiles?\s+(?:sont?\s+)?(?:le\s+)?(\d{1,2})\s+et\s+(?:le\s+)?(\d{1,2})'
 
-# ── Upsert Supabase ───────────────────────────────────────────────────────────
-def upsert_batch(rows):
-    if not rows: return 0
-    data = json.dumps(rows).encode('utf-8')
+        for m in re.finditer(pattern, html, re.IGNORECASE):
+            try:
+                jour = m.group(1).upper()
+                day = int(m.group(2))
+                month = MOIS.get(m.group(3).lower())
+                year = int(m.group(4))
+                if not month: continue
+
+                nums_raw = m.group(5)
+                nums = [int(x) for x in re.findall(r'\d+', nums_raw)]
+                e1, e2 = int(m.group(6)), int(m.group(7))
+
+                if len(nums) < 5: continue
+                nums = nums[:5]
+                if not all(1<=x<=50 for x in nums): continue
+                if not all(1<=x<=12 for x in [e1,e2]): continue
+
+                date_str = f'{year:04d}-{month:02d}-{day:02d}'
+                boules = sorted(nums)
+                etoiles = sorted([e1, e2])
+
+                draws.append({
+                    'date_tirage': date_str,
+                    'jour': jour,
+                    'boule_1': boules[0], 'boule_2': boules[1], 'boule_3': boules[2],
+                    'boule_4': boules[3], 'boule_5': boules[4],
+                    'etoile_1': etoiles[0], 'etoile_2': etoiles[1],
+                    'boules': json.dumps(boules),
+                    'etoiles': json.dumps(etoiles)
+                })
+            except Exception as e:
+                print(f'  ⚠️  Parse error: {e}')
+                continue
+    except Exception as e:
+        print(f'❌  Erreur scraping: {e}')
+    return draws
+
+# ── Supabase ──────────────────────────────────────────────────────────────────
+def date_exists(date_str):
+    url = f'{SUPABASE_URL}/rest/v1/euromillions_tirages?select=date_tirage&date_tirage=eq.{date_str}'
+    req = urllib.request.Request(url, headers={
+        'apikey': SUPABASE_KEY,
+        'Authorization': f'Bearer {SUPABASE_KEY}'
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            return len(json.loads(r.read())) > 0
+    except:
+        return False
+
+def insert_draw(row):
+    data = json.dumps([row]).encode('utf-8')
     req = urllib.request.Request(
         f'{SUPABASE_URL}/rest/v1/euromillions_tirages',
         data=data,
@@ -85,69 +94,51 @@ def upsert_batch(rows):
             'Content-Type': 'application/json',
             'apikey': SUPABASE_KEY,
             'Authorization': f'Bearer {SUPABASE_KEY}',
-            'Prefer': 'resolution=merge-duplicates,return=minimal'
+            'Prefer': 'return=minimal'
         },
         method='POST'
     )
     try:
-        with urllib.request.urlopen(req) as r:
-            return len(rows)
+        with urllib.request.urlopen(req, timeout=10):
+            return True
     except urllib.error.HTTPError as e:
-        print(f'  ⚠️  Supabase error {e.code}: {e.read()[:200]}')
-        return 0
+        if e.code == 409: return False
+        print(f'  ⚠️  Erreur {e.code}: {e.read()[:200]}')
+        return False
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
     print(f'🎰  Lucky Thunes — Sync Euromillions')
     print(f'   {datetime.now().isoformat()}\n')
 
-    zip_data = download_fdj()
-    if not zip_data:
-        print('❌  Impossible de télécharger le fichier FDJ')
-        sys.exit(1)
+    draws = scrape_secretsdujeu()
+    if not draws:
+        print('⚠️  Aucun tirage détecté')
+        return
 
-    print(f'✅  ZIP téléchargé ({len(zip_data)} octets)')
+    # Dédoublonner
+    unique = {}
+    for d in draws: unique[d['date_tirage']] = d
+    draws = sorted(unique.values(), key=lambda x: x['date_tirage'], reverse=True)
 
-    # Extraire le CSV du ZIP
-    try:
-        with zipfile.ZipFile(io.BytesIO(zip_data)) as z:
-            csv_names = [n for n in z.namelist() if n.endswith('.csv')]
-            if not csv_names:
-                print('❌  Aucun CSV trouvé dans le ZIP')
-                sys.exit(1)
-            csv_name = csv_names[0]
-            print(f'📄  Lecture: {csv_name}')
-            with z.open(csv_name) as f:
-                content = f.read()
-    except Exception as e:
-        print(f'❌  Erreur ZIP: {e}')
-        sys.exit(1)
+    print(f'📊  {len(draws)} tirage(s) récent(s) détecté(s)\n')
+    for d in draws:
+        print(f'   • {d["date_tirage"]} ({d["jour"]}) — boules {d["boules"]} étoiles {d["etoiles"]}')
 
-    # Parser le CSV (tenter plusieurs encodages)
-    rows = []
-    for enc in ['utf-8', 'latin-1', 'cp1252']:
-        try:
-            text = content.decode(enc)
-            reader = csv.reader(io.StringIO(text), delimiter=';')
-            header = next(reader)
-            has_cycle, b_off = detect_format(header)
-            for line in reader:
-                if not line or not line[0].strip(): continue
-                r = parse_row(line, has_cycle, b_off)
-                if r: rows.append(r)
-            break
-        except (UnicodeDecodeError, StopIteration):
+    print()
+    added = skipped = 0
+    for d in draws:
+        if date_exists(d['date_tirage']):
+            print(f'   ⏭️   {d["date_tirage"]} déjà en base')
+            skipped += 1
             continue
+        if insert_draw(d):
+            print(f'   ✅  {d["date_tirage"]} ajouté')
+            added += 1
+        else:
+            print(f'   ❌  {d["date_tirage"]} échec')
 
-    if not rows:
-        print('❌  Aucun tirage parsé')
-        sys.exit(1)
-
-    print(f'📊  {len(rows)} tirages parsés ({rows[-1]["date_tirage"]} → {rows[0]["date_tirage"]})')
-
-    # Upsert (traite merge-duplicates → ne crée que les nouveaux)
-    n = upsert_batch(rows)
-    print(f'\n🎉  {n} tirages synchronisés dans Supabase')
+    print(f'\n🎉  Terminé : {added} ajouté(s), {skipped} déjà présent(s)')
 
 if __name__ == '__main__':
     main()
