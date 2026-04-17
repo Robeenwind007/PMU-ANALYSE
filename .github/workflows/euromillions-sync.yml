@@ -1,0 +1,29 @@
+name: Euromillions Sync
+
+on:
+  schedule:
+    # Tirages mardi et vendredi soir ~21h15
+    # On sync mercredi et samedi à 7h UTC (8h/9h heure française)
+    - cron: '0 7 * * 3,6'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    name: Sync FDJ Euromillions → Supabase
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run sync
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python3 scripts/sync-euromillions.py
